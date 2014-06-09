@@ -284,6 +284,14 @@ static int crear_tarea(char *prog){
  *
  */
 
+ /*
+ * Tratamiento de la llamada al sistema obtener_id_pr.
+ *
+ */
+ int sis_obtener_id_pr() {
+ 	return p_proc_actual->id;
+ }
+
 /*
  * Tratamiento de llamada al sistema crear_proceso. Llama a la
  * funcion auxiliar crear_tarea sis_terminar_proceso

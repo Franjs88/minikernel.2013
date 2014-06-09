@@ -80,6 +80,16 @@ typedef struct{
 	int (*fservicio)();
 } servicio;
 
+/*
+*
+* Definición del tipo struct tiempos_ejec
+*
+*/
+typedef struct {
+	int usuario;
+	int sistema;
+};
+
 
 /*
  * Prototipos de las rutinas que realizan cada llamada al sistema
@@ -87,6 +97,12 @@ typedef struct{
 int sis_crear_proceso();
 int sis_terminar_proceso();
 int sis_escribir();
+
+/* Funcionalidad adicional */
+int sis_obtener_id_pr();
+int sis_dormir(unsigned int segundos);
+int sis_tiempos_proceso();
+
 
 /*
  * Variable global que contiene las rutinas que realizan cada llamada
