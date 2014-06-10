@@ -37,6 +37,7 @@ typedef struct BCP_t {
         void * pila;			/* dir. inicial de la pila */
 	BCPptr siguiente;		/* puntero a otro BCP */
 	void *info_mem;			/* descriptor del mapa de memoria */
+	unsigned int segs;		/* segundos que permance dormido el proceso*/
 } BCP;
 
 /*
@@ -100,7 +101,7 @@ int sis_escribir();
 
 /* Funcionalidad adicional */
 int sis_obtener_id_pr();
-int sis_dormir(unsigned int segundos);
+int sis_dormir();
 int sis_tiempos_proceso();
 
 
