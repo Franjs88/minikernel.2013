@@ -208,7 +208,58 @@ static void int_reloj(){
 
 	printk("-> TRATANDO INT. DE RELOJ\n");
 
-        return;
+	/* parte asociada a tiempos_proceso */
+	num_ints_desde_arranque++;
+	// Asignamos recursos de procesador si hay alguno que 
+	// lo necesite
+	if(lista_listos.primero != NULL) {
+		if(viene_de_modo_usuario()){
+			p_proc_actual->usuario++;
+		}
+		else {
+			p_proc_actual->sistema++;
+		}
+        
+	}
+
+	/* Tratamos los procesos dormidos */
+	if(dormidos.primero != NULL) {
+		BCP * pr_dormido;
+		BCP * dorm_aux;
+
+		pr_dormido = dormidos.primero;
+		while(pr_dormido != NULL) {
+			pr_dormido->segs--;
+			// Si algun proceso terminado su espera
+			if(pr_dormido->segs <= 0) {
+				//reajustamos listas
+				pr_dormido->estado = LISTO;
+
+				if(pr_dormido->siguiente != NULL) {
+					// El puntero interno se modifica
+					// Guardamos una copia antes para mantener el orden
+					dorm_aux = pr_dormido->siguiente;
+					eliminar_elem(&dormidos, pr_dormido);
+					insertar_ultimo(&lista_listos, pr_dormido);
+					pr_dormido = dorm_aux;
+				}
+				else {
+					eliminar_elem(&dormidos, pr_dormido);
+					insertar_ultimo(&lista_listos, pr_dormido);
+				}
+
+				pr_dormido = pr_dormido->siguiente;
+
+			}
+		}
+	}
+
+	/* Si hay algun proceso en estado de listo lo tratamos */
+	if(lista_listos.primero != NULL) {
+
+	}
+
+	return;
 }
 
 /*
@@ -324,6 +375,24 @@ static int crear_tarea(char *prog){
  	fijar_nivel_int(nivel_previo);
  	return 0;
  } 
+
+ /*
+ * Tratamiento de la llamada al sistema tiempos_proceso
+ *
+ */
+ int sis_tiempos_proceso() {
+ 	struct tiempos_ejec *t_ejec;
+ 	t_ejec = (struct tiempos_ejec *)leer_registro(1);
+ 	
+ 	if(t_ejec != NULL ) {
+ 		nivel_previo = fijar_nivel_int(3);
+ 		t_ejec->usuario = p_proc_actual->usuario;
+ 		t_ejec->sistema = p_proc_actual->sistema;
+ 		accede = 1;
+ 		fijar_nivel_int(nivel_previo);
+ 	}
+ 	return num_ints_desde_arranque;
+ }
 
 /*
  * Tratamiento de llamada al sistema crear_proceso. Llama a la

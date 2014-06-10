@@ -40,6 +40,8 @@ typedef struct BCP_t {
 	unsigned int segs;		/* segundos que permance dormido el proceso*/
 	int replanificacion;	/* booleano para saber cuando hay que hacer un
 							 cambio de contexto involuntario */
+	int sistema;			/* Indica el numero de ticks que proc ejecuta en modo sistema*/
+	int usuario;			/* Indica el numero de ticks que proc ejecuta en modo usuario*/
 } BCP;
 
 /*
@@ -60,6 +62,18 @@ typedef struct{
 * un cambio en el nivel de interrupcion
 */
 int nivel_previo;
+
+/*
+* Variable global que indica el numero de interrupciones de reloj 
+* producidas desde el arranque del sistema
+*/
+int num_ints_desde_arranque;
+
+/*
+* Variable global que indica que se esta accediendo en modo sistema
+* a la zona donde referencia esta variable
+*/
+int accede = 0;
 
 
 /*
@@ -99,7 +113,7 @@ typedef struct{
 * Definición del tipo struct tiempos_ejec
 *
 */
-typedef struct {
+struct tiempos_ejec {
 	int usuario;
 	int sistema;
 };
