@@ -304,18 +304,18 @@ static int crear_tarea(char *prog){
  	p_proc_actual->segs = leer_registro(1)*TICK;
  	// indicamos que ya no es necesario realizar
  	// cambio de contexto involuntario
- 	p_proc_actual->replanificacion_pendiente=FALSE;
+ 	p_proc_actual->replanificacion = 0;
  	nivel_previo = fijar_nivel_int(NIVEL_3);
  	// Eliminamos de la lista de procesos listos 
  	// e insertamos en la lista de dormidos
  	eliminar_primero(&lista_listos);
- 	insertar_ultimo(&lista_dormidos, p_proc_actual);
+ 	insertar_ultimo(&dormidos, p_proc_actual);
  	// hacemos un cambio de contexto
  	p_proc_anterior = p_proc_actual;
  	p_proc_actual = planificador();
 
  	printk("==> CAMBIO CONTEXTO DORMIR: de %d hasta %d\n",
- 		p_proc_anterior->id, p_proc_actual->id)
+ 		p_proc_anterior->id, p_proc_actual->id);
 
  	// Restauramos el contexto de nuestro nuevo proc_actual
  	cambio_contexto(&(p_proc_anterior->contexto_regs),

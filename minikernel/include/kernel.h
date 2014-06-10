@@ -38,6 +38,8 @@ typedef struct BCP_t {
 	BCPptr siguiente;		/* puntero a otro BCP */
 	void *info_mem;			/* descriptor del mapa de memoria */
 	unsigned int segs;		/* segundos que permance dormido el proceso*/
+	int replanificacion;	/* booleano para saber cuando hay que hacer un
+							 cambio de contexto involuntario */
 } BCP;
 
 /*
@@ -52,6 +54,12 @@ typedef struct{
 	BCP *primero;
 	BCP *ultimo;
 } lista_BCPs;
+
+/*
+* Variable global que indica el nivel previo de interrupción ante 
+* un cambio en el nivel de interrupcion
+*/
+int nivel_previo;
 
 
 /*
@@ -70,6 +78,11 @@ BCP tabla_procs[MAX_PROC];
  * Variable global que representa la cola de procesos listos
  */
 lista_BCPs lista_listos= {NULL, NULL};
+
+/*
+* Variable gloal que representa la lista de procesos dormidos
+*/
+lista_BCPs dormidos = {NULL, NULL};
 
 /*
  *
