@@ -231,6 +231,28 @@ int mutex_exist(char*name) {
 	}
 }
 
+int dame_posicion_en_mutex(char*nombre) {
+	int enc = 0;
+	int n = 0;
+
+	while((n<NUM_MUT) && (!enc)) {
+		//seleccionamos solo aquellos indices con un mutex
+		if (mutex[n].num_procs_en_mutex > 0) {
+			// Comparamos solo si coincide el nombre
+			if(strcmp(nombre, mutex[n].nombre_mutex) == 0) {
+				enc = 1;
+			}
+		}
+		n++;
+	}
+	if(!enc) {
+		return -1;
+	}
+	else {
+		return n-1;
+	}
+}
+
 /*
  *
  * Funciones relacionadas con el tratamiento de interrupciones
@@ -483,7 +505,9 @@ static int crear_tarea(char *prog){
  */
 
  /*
- *	Tratamiento de la llamada al sistema crear_mutex
+ *	Tratamiento de la llamada al sistema crear_mutex. Llama
+ *  a las funciones auxiliares mutex_exist, existe_descriptor y 
+ *	dame_libre.
  */
  int sis_crear_mutex() {
  	BCP * p_proc_anterior;
@@ -555,6 +579,146 @@ static int crear_tarea(char *prog){
  	return disponibilidad;
 
  }
+
+/*
+ *	Tratamiento de llamada al sistema abrir_mutex. Llama a las funciones
+ *	auxiliares 
+ */
+int sis_abrir_mutex() {
+	char*nombre = (char*)leer_registro(1);
+ 	int pos;
+ 	int exists;
+ 	int descriptor;
+
+ 	pos = existe_descriptor();
+ 	//Si no hay descriptor:
+ 	if(pos == -1) {
+ 		printk("ERROR: no hay descriptores libres para el proceso %d\n",
+ 			p_proc_actual->id);
+ 		return -1;
+ 	}
+
+ 	// Si no se cumple lo anterior:
+ 	exists = mutex_exist(nombre);
+ 	//Si no existe:
+ 	if (!exists) {
+ 		printk("ERROR: no existe el MUTEX en el sistema operativo\n");
+ 		return -1;
+ 	}
+
+ 	// Si hemos llegado hasta aqui se han cumplido las precondiciones
+ 	// Por lo que concedemos el descriptor al mutex
+ 	descriptor = dame_posicion_en_mutex(nombre);
+ 	mutex[descriptor].num_procs_en_mutex++;
+ 	p_proc_actual->descriptores[pos].descript = descriptor;
+ 	p_proc_actual->descriptores[pos].libre = 1;
+
+ 	return descriptor;
+}
+
+int sis_lock() {
+	BCP*p_proc_anterior;
+	int blocked;
+	unsigned int mutexid = (unsigned int)leer_registro(1);
+
+	do {
+		blocked = 0;
+		if(mutex[mutexid].num_procs_en_mutex > 0) {
+			//Verificamos si esta o no esta bloqueado
+			if(mutex[mutexid].bloqueado > 0) {
+				//Comprobamos si es RECURSIVO
+				if(mutex[mutexid].tipo == RECURSIVO) {
+					//Comprobamos si es el dueño
+					if(mutex[mutexid].propietario == p_proc_actual->id) {
+						//Aumentamos el numero de bloqueos en el mutex
+						mutex[mutexid].bloqueado++;
+					}
+					// Si no, bloqueamos al proceso
+					else {
+						p_proc_actual->estado = BLOQUEADO;
+						// Ya no se debe hacer C. de contexto involuntario
+						p_proc_actual->replanificacion = 0;
+						nivel_previo = fijar_nivel_int(NIVEL_3);
+
+						eliminar_primero(&lista_listos);
+						//Lo insertamos en la lista de bloqueados por un lock
+						insertar_ultimo(&lista_de_bloqueados, p_proc_actual);
+						//Hacemos un C de Contexto
+						p_proc_anterior = p_proc_actual;
+						p_proc_actual = planificador();
+
+						printk("*** C de CONTEXTO POR UN LOCK: de %d a %d\n",
+						p_proc_anterior->id, p_proc_actual->id);
+						
+						//Restauramos el contexto del nuevo actual
+						cambio_contexto(&(p_proc_anterior->contexto_regs), &(p_proc_actual->contexto_regs));
+						fijar_nivel_int(nivel_previo);
+						//Ahora indicamos que hay que volver a comprobar para que no se 
+						//cuele ningun proceso
+						blocked = 1;
+					}
+				}
+				else if(mutex[mutexid].tipo == NO_RECURSIVO) {
+					//Vemos si es el dueño del bloqueo
+					if(mutex[mutexid].propietario == p_proc_actual->id) {
+						//Comprobamos si ya hay un proceso bloqueandolo
+						if(mutex[mutexid].propietario == p_proc_actual->id) {
+							//Si es asi, capturamos el error. Ya que se produciria interbloqueo
+							printk("ERROR: se esta produciendo un caso de interbloqueo trivial\n");
+							return -1;
+						}
+						//En caso contrario bloqueamos el mutex
+						mutex[mutexid].bloqueado++;
+					}
+					//Si no es el dueño bloqueamos al proceso
+					else {
+						p_proc_actual->estado = BLOQUEADO;
+						// Ya no es necesario hacer cambio de contexto involuntario
+						p_proc_actual->replanificacion = 0;
+						nivel_previo = fijar_nivel_int(NIVEL_3);
+						
+						eliminar_primero(&lista_listos);
+						insertar_ultimo(&lista_de_bloqueados, p_proc_actual);
+						//Hacemos un C de Contexto
+						p_proc_anterior = p_proc_actual;
+						p_proc_actual = planificador();
+
+						printk("*** C de CONTEXTO POR UN LOCK: de %d a %d\n",
+							p_proc_anterior->id, p_proc_actual->id);
+						//Restauramos el contexto del nuevo actual
+						cambio_contexto(&(p_proc_anterior->contexto_regs),
+							&(p_proc_actual->contexto_regs));
+						fijar_nivel_int(nivel_previo);
+
+						//Indamos que hay que volver a comprobar para que no se cuele
+						//ningun proceso
+						blocked = 1;
+					}
+				}
+			}
+			else if(mutex[mutexid].bloqueado == 0) {
+				//Hacemos que el proceso actual pase a ser el nuevo propietario
+				//Bloqueamos al mutex
+				mutex[mutexid].bloqueado++;
+				mutex[mutexid].propietario = p_proc_actual->id;
+			}
+			else {
+				printk("ERROR: error interno en el mutex");
+				return -1;
+			}
+		}
+		else {
+			printk("ERROR: se esta intentando bloquar un mutex que aun no ha sido abierto");
+			return -1;
+		}
+	}
+	while (blocked);
+	return 0;
+}
+
+int sis_unlock() {
+	return 0;
+}
 
 /*
  * Tratamiento de llamada al sistema crear_proceso. Llama a la

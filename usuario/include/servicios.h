@@ -22,6 +22,9 @@
 /* Evita el uso del printf de la bilioteca estándar */
 #define printf escribirf
 
+#define NO_RECURSIVO 0
+#define RECURSIVO 1
+
 /*
 * Definición del tipo struct tiempos_ejec
 */
@@ -42,6 +45,12 @@ int escribir(char *texto, unsigned int longi);
 int obtener_id_pr();
 int dormir(unsigned int segundos);
 int tiempos_proceso();
+int crear_mutex(char*nombre, int tipo);
+int abrir_mutex(char*nombre);
+int lock(unsigned int mutexid);
+int unlock(unsigned int mutexid);
+int cerrar_mutex(unsigned int mutexid);
+int leer_caracter();
 
 #endif /* SERVICIOS_H */
 
