@@ -50,7 +50,7 @@ int dormir(unsigned int segundos) {
 	return llamsis(DORMIR, 1, (long)segundos);
 }
 int tiempos_proceso(struct tiempos_ejec *t_ejec) {
-	return llamsis(LEER_CARACTER, 0);
+	return llamsis(TIEMPOS_PROCESO, 0);
 }
 int crear_mutex(char*nombre, int tipo) {
 	return llamsis(CREAR_MUTEX, 2, (long)nombre, (long) tipo);
@@ -65,7 +65,7 @@ int unlock(unsigned int mutexid) {
 	return llamsis(UNLOCK, 1, (long) mutexid);
 }
 int cerrar_mutex(unsigned int mutexid) {
-	return llamsis)CERRAR_MUTEX, 1, (long) mutexid);
+	return llamsis(CERRAR_MUTEX, 1, (long) mutexid);
 }
 int leer_caracter() {
 	return llamsis(LEER_CARACTER, 0);

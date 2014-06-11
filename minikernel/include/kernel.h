@@ -24,6 +24,17 @@
 
 
 /*
+*
+* Definición del tipo struct tiempos_ejec
+*
+*/
+struct tiempos_ejec {
+	int usuario;
+	int sistema;
+};
+
+
+/*
 *	Definicion del tipo para los descriptores de proceso
 */
 typedef struct {
@@ -151,16 +162,6 @@ typedef struct {
 } tipo_mutex;
 
 tipo_mutex mutex[NUM_MUT];
-
-/*
-*
-* Definición del tipo struct tiempos_ejec
-*
-*/
-struct tiempos_ejec {
-	int usuario;
-	int sistema;
-};
 
 
 /*
