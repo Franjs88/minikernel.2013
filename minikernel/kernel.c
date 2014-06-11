@@ -14,11 +14,12 @@ x/*
  */
 
 #include "kernel.h"	/* Contiene defs. usadas por este modulo */
+#include "string.h"
 
 /*
  *
  * Funciones relacionadas con la tabla de procesos:
- *	iniciar_tabla_proc buscar_BCP_libre
+ * iniciar_tabla_proc buscar_BCP_libre
  *
  */
 
@@ -146,6 +147,88 @@ static void liberar_proceso(){
 	liberar_pila(p_proc_anterior->pila);
 	cambio_contexto(NULL, &(p_proc_actual->contexto_regs));
         return; /* no debería llegar aqui */
+}
+
+/*
+*
+* Funciones relacionadas con el uso de MUTEX
+*
+*/
+
+/*
+* Funcion auxiliar que el proceso actual tiene libre algun
+* descriptor.
+* Return: Posicion si hay disponible
+* Return: -1 si error.
+*/
+int existe_descriptor() {
+	int enc = 0;
+	int n = 0;
+	while((n < NUM_MUT_PROC) && (!enc)) {
+		//Comprobamos si tiene descriptor libre
+		if(p_proc_actual->descriptores[n].libre == 0) {
+			enc = 1;
+		}
+		n++;
+	}
+	// Tratamiento de errores en caso de no haber
+	if(!enc) {
+		return -1;
+	}
+	else {
+		return n-1;
+	}
+
+}
+
+/*
+* Funcion auxiliar que el proceso actual tiene libre algun
+* descriptor.
+* Return: Posicion si hay disponible
+* Return: -1 si error.
+*/
+int dame_libre() {
+	int enc = 0;
+	int n = 0;
+
+	while ((!enc) && (n<NUM_MUT)) {
+		//Comprobamos si hay hueco libre
+		if(mutex[n].num_procs_en_mutex <= 0) {
+			enc = 1;
+		}
+		n++;
+	}
+	if(!enc) {
+		return LLENO;
+	}
+	else return n-1;
+}
+
+/*
+* Funcion auxiliar que verifica si existe ya un MUTEX dado
+* Return: 1 si se ha encontrado
+* Return: 0 eoc.
+*/
+int mutex_exist(char*name) {
+	int enc = 0;
+	int n = 0;
+
+	while((n<NUM_MUT) && (!enc)) {
+		//Buscamos en indices que tengan mutex
+		if (mutex[n].num_procs_en_mutex > 0) {
+			//Verificamos si el nombre coincide
+			if(strcmp(name, mutex[n].nombre_mutex)) {
+				enc = 1;
+			}
+		}
+		n++;
+	}
+	if(!enc) {
+		return 0;
+	}
+	else {
+		return 1;
+	}
 }
 
 /*
@@ -365,7 +448,7 @@ static int crear_tarea(char *prog){
  	p_proc_anterior = p_proc_actual;
  	p_proc_actual = planificador();
 
- 	printk("==> CAMBIO CONTEXTO DORMIR: de %d hasta %d\n",
+ 	printk("*** CAMBIO CONTEXTO DORMIR: de %d hasta %d\n",
  		p_proc_anterior->id, p_proc_actual->id);
 
  	// Restauramos el contexto de nuestro nuevo proc_actual
@@ -392,6 +475,85 @@ static int crear_tarea(char *prog){
  		fijar_nivel_int(nivel_previo);
  	}
  	return num_ints_desde_arranque;
+ }
+
+
+ /*
+ * Comienza la parte de MUTEX
+ */
+
+ /*
+ *	Tratamiento de la llamada al sistema crear_mutex
+ */
+ int sis_crear_mutex() {
+ 	BCP * p_proc_anterior;
+ 	char*nombre = (char*)leer_registro(1);
+ 	int pos;
+ 	int exists;
+ 	int disponibilidad;
+ 	int type = leer_registro(2);
+
+ 	// Vemos si hay descriptor libres
+ 	pos = existe_descriptor();
+
+ 	// Captura de error en caso de no haberlo
+ 	if(pos == -1){
+ 		printk("ERROR: Ya existe ese MUTEX");
+ 		return -1;
+ 	}
+
+ 	// en cualquier otro caso:
+ 	exists = mutex_exist(nombre);
+
+ 	if(exists) {
+ 		printk("ERROR: ya existe el MUTEX");
+ 		return -1;
+ 	}
+
+ 	// Ahora comprobamos si hay algun espacio en el sistema
+ 	disponibilidad = dame_libre();
+
+ 	// Si no hay huecos, se bloquea
+ 	while(disponibilidad == LLENO) {
+ 		p_proc_actual->estado = BLOQUEADO;
+ 		p_proc_actual->replanificacion = 0;
+ 		nivel_previo = fijar_nivel_int(NIVEL_3);
+ 		eliminar_primero(&lista_listos);
+ 		// Lo insertamos al final de la lista
+ 		insertar_ultimo(&lista_de_mutex, p_proc_actual);
+ 		// Hacemos un c. de contexto
+ 		p_proc_anterior = p_proc_actual;
+ 		//Esperamos a que haya un proceso listo
+ 		p_proc_actual = planificador();
+ 		//Imprimimos:
+ 		printk("*** CAMBIO CONTEXTO POR FUNCION CREAR MUTEX: de %d a %d\n",
+ 			p_proc_anterior->id, p_proc_actual->id);
+ 		// Restauramos contexto del nuevo proceso actual
+ 		cambio_contexto(&(p_proc_anterior->contexto_regs),
+ 			&(p_proc_actual->contexto_regs));
+ 		fijar_nivel_int(nivel_previo);
+ 		disponibilidad = dame_libre();
+ 	}
+ 	// En cualquier otro caso comprobamos:
+ 	// Si existe ya un mutex con dicho nombre
+ 	exists = mutex_exist(nombre);
+
+ 	if(exists) {
+ 		printk("ERROR: ya existe el mutex");
+ 		return -1;
+ 	}
+
+ 	//Tras las verificaciones
+ 	//Creamos el MUTEX:
+ 	mutex[disponibilidad].propietario = p_proc_actual->id;
+ 	mutex[disponibilidad].num_procs_en_mutex++;
+ 	mutex[disponibilidad].tipo = type;
+ 	mutex[disponibilidad].nombre_mutex = strdup(nombre);
+
+ 	p_proc_actual->descriptores[pos].descript = disponibilidad;
+ 	p_proc_actual->descriptores[pos].libre = 1;
+ 	return disponibilidad;
+
  }
 
 /*
