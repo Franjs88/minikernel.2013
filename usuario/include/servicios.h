@@ -28,7 +28,7 @@
 /*
 * Definición del tipo struct tiempos_ejec
 */
-typedef struct {
+struct tiempos_ejec {
 	int usuario;
 	int sistema;
 };
