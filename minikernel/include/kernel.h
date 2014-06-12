@@ -24,17 +24,6 @@
 
 
 /*
-*
-* Definición del tipo struct tiempos_ejec
-*
-*/
-struct tiempos_ejec {
-	int usuario;
-	int sistema;
-};
-
-
-/*
 *	Definicion del tipo para los descriptores de proceso
 */
 typedef struct {
@@ -80,6 +69,18 @@ typedef struct{
 	BCP *primero;
 	BCP *ultimo;
 } lista_BCPs;
+
+
+/*
+*
+* Definición del tipo struct tiempos_ejec
+*
+*/
+struct tiempos_ejec {
+	int usuario;
+	int sistema;
+};
+
 
 /*
 * Variable global que indica el nivel previo de interrupción ante 

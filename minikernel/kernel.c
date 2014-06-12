@@ -1,4 +1,4 @@
-x/*
+/*
  *  kernel/kernel.c
  *
  *  Minikernel. Versión 1.0
@@ -717,6 +717,75 @@ int sis_lock() {
 }
 
 int sis_unlock() {
+	BCP*pr_bloqueado;
+	unsigned int mutex_id = (unsigned int)leer_registro(1);
+
+	//verificamos que existe el mutex
+	if(mutex[mutex_id].num_procs_en_mutex > 0) {
+		//Comprobamos si esta bloqueado
+		if(mutex[mutex_id].bloqueado > 0) {
+			//Comprobamos el tipo
+			if(mutex[mutex_id].tipo == RECURSIVO) {
+				//Comprobamos si es el dueno del bloqueo
+				if(mutex[mutex_id].propietario == p_proc_actual->id) {
+					//Disminuimos el numero de bloqueos
+					mutex[mutex_id].bloqueado--;
+					if(mutex[mutex_id].bloqueado == 0) {
+						pr_bloqueado = lista_de_bloqueados.primero;
+						//Verificamos si hay algun proc en espera
+						if(pr_bloqueado != NULL) {
+							//Despertamos al proceso bloqueado
+							pr_bloqueado->estado = LISTO;
+							nivel_previo = fijar_nivel_int(NIVEL_3);
+							eliminar_primero(&lista_de_bloqueados);
+							insertar_ultimo(&lista_listos, pr_bloqueado);
+							fijar_nivel_int(nivel_previo);
+						}
+					}
+				}
+				//En caso contrario, capturamos el error
+				else {
+					printk("ERROR: mutex tiene que ser boqueado por el mismo proceso\n");
+				}
+			}
+			//En caso de NO_RECURSIVO
+			else if(mutex[mutex_id].tipo == NO_RECURSIVO) {
+				//Verificamos si es el dueno
+				if(mutex[mutex_id].propietario == p_proc_actual->id) {
+					//Desbloqueamos
+					mutex[mutex_id].bloqueado--;
+					if(mutex[mutex_id].bloqueado != 0) {
+						printk("ERROR: intento de desbloqueo del mutex no recursivo ha fallado\n");
+						return -1;
+					}
+					pr_bloqueado = lista_de_bloqueados.primero;
+					//Verificamos si hay algun proceso en espera
+					if(pr_bloqueado != NULL) {
+						pr_bloqueado->estado = LISTO;
+						nivel_previo = fijar_nivel_int(NIVEL_3);
+						eliminar_primero(&lista_de_bloqueados);
+						insertar_ultimo(&lista_listos, pr_bloqueado);
+						fijar_nivel_int(nivel_previo);
+					}
+				}
+				else {
+					printk("ERROR: mutex tiene que ser boqueado por el mismo proceso\n");
+				}
+			}
+		}
+		//En caso de no estar bloqueado
+		else if(mutex[mutex_id].bloqueado == 0) {
+			printk("ERROR: un mutex no bloqueado no puede ser desbloqueado");
+		}
+		else {
+			printk("ERROR: error interno en el mutex");
+			return -1;
+		}
+	}
+	else {
+		printk("ERROR: no se puede desbloquear un mutex que no ha sido abierto");
+		return -1;
+	}
 	return 0;
 }
 

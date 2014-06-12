@@ -22,9 +22,6 @@
 /* Evita el uso del printf de la bilioteca estándar */
 #define printf escribirf
 
-#define NO_RECURSIVO 0
-#define RECURSIVO 1
-
 /*
 * Definición del tipo struct tiempos_ejec
 */
@@ -32,6 +29,10 @@ struct tiempos_ejec {
 	int usuario;
 	int sistema;
 };
+
+#define NO_RECURSIVO 0
+#define RECURSIVO 1
+
 
 /* Funcion de biblioteca */
 int escribirf(const char *formato, ...);
