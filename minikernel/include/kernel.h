@@ -195,7 +195,7 @@ int sis_abrir_mutex();
 int sis_lock();
 int sis_unlock();
 int sis_cerrar_mutex();
-int sis_leer_caracter();
+//int sis_leer_caracter();
 
 
 /*
@@ -211,8 +211,8 @@ servicio tabla_servicios[NSERVICIOS]={	{sis_crear_proceso},
 					{sis_abrir_mutex},
 					{sis_lock},
 					{sis_unlock},
-					{sis_cerrar_mutex},
-					{sis_leer_caracter}};
+					{sis_cerrar_mutex}};//,
+					//{sis_leer_caracter}};
 
 #endif /* _KERNEL_H */
 

@@ -403,6 +403,7 @@ static int crear_tarea(char *prog){
 	int error=0;
 	int proc;
 	BCP *p_proc;
+	int n;
 
 	proc=buscar_BCP_libre();
 	if (proc==-1)
@@ -423,8 +424,18 @@ static int crear_tarea(char *prog){
 		p_proc->id=proc;
 		p_proc->estado=LISTO;
 
+		p_proc->usuario = 0;
+		p_proc->sistema = 0;
+		p_proc->replanificacion = 0;
+
+		for(n=0; n < NUM_MUT_PROC; n++) {
+			p_proc->descriptores[n].libre = 0;
+		}
+
 		/* lo inserta al final de cola de listos */
+		nivel_previo = fijar_nivel_int(NIVEL_3);
 		insertar_ultimo(&lista_listos, p_proc);
+		fijar_nivel_int(nivel_previo);
 		error= 0;
 	}
 	else
@@ -785,6 +796,51 @@ int sis_unlock() {
 	else {
 		printk("ERROR: no se puede desbloquear un mutex que no ha sido abierto");
 		return -1;
+	}
+	return 0;
+}
+
+
+int sis_cerrar_mutex() {
+	BCP * pr_blocked_mutex;
+	BCP * pr_bloqueado;
+	int exists;
+	unsigned int mutex_id =(unsigned int)leer_registro(1);
+	// Comprobamos si existe el descriptor que se quiere cerrar
+	exists = existe_descriptor(mutex_id);
+	if(exists < 0) {
+		printk("ERROR: no existe el descriptor que se quiere cerrar");
+		return -1;
+	}
+
+	p_proc_actual->descriptores[exists].libre = 0;
+	if(mutex[mutex_id].num_procs_en_mutex <= 0) {
+		printk("ERROR: el mutex cerrar no existe");
+		return -1;
+	}
+	mutex[mutex_id].num_procs_en_mutex--;
+	//Si ha llegado a cero, hay MUTEX disponible
+	if(mutex[mutex_id].propietario == p_proc_actual->id) {
+		mutex[mutex_id].bloqueado = 0;
+		pr_bloqueado = lista_de_bloqueados.primero;
+		if(pr_bloqueado != NULL) {
+			pr_bloqueado->estado = LISTO;
+			nivel_previo = fijar_nivel_int(NIVEL_3);
+			eliminar_primero(&lista_de_bloqueados);
+			insertar_ultimo(&lista_listos,pr_bloqueado);
+			fijar_nivel_int(nivel_previo);
+		}
+	}
+	if(mutex[mutex_id].num_procs_en_mutex == 0) {
+		pr_blocked_mutex = lista_de_mutex.primero;
+		//Verificamos si hay algun proceso esperando
+		if(pr_blocked_mutex != NULL) {
+			pr_blocked_mutex->estado = LISTO;
+			nivel_previo = fijar_nivel_int(NIVEL_3);
+			eliminar_primero(&lista_de_mutex);
+			insertar_ultimo(&lista_listos, pr_blocked_mutex);
+			fijar_nivel_int(nivel_previo);
+		}
 	}
 	return 0;
 }
